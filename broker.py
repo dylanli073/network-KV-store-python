@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-import socket
-
 from agents import Broker, BROKER_IP, BROKER_PORT
 
 def main():

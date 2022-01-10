@@ -8,6 +8,7 @@ BROKER_PORT = 8088
 N_TOPIC_LIMIT = 16
 
 class Subscriber:
+    """Subscriber implementation in the pub-sub system"""
     topics = []
 
     def __init__(self, host=None, port=None):
@@ -27,13 +28,13 @@ class Subscriber:
             s.connect((self.host, self.port))
             s.sendall(b'Subscriber')
             self.last_message = s.recv(1024)
-            
+
             print(f"self.last_message: {self.last_message}")
-            
+
             # Collecting topics and sending them in byte rep to broker
             for _ in range(N_TOPIC_LIMIT):
                 topic = input("Enter additional topic (if end, write 'END'): ")
-                assert(topic != "")
+                assert topic != ""
                 if topic == "END":
                     break
                 self.topics.append(topic.strip())
@@ -47,6 +48,7 @@ class Subscriber:
 
 
 class Broker:
+    """Broker implementation in the pub-sub system"""
     queue_length = 3
 
     # Stores metadata about each connection
@@ -58,14 +60,14 @@ class Broker:
 
     def _process_subscriber(self, addr, data):
         """Code for processing subscriber inputs (adding to topic queue)"""
-        assert(addr in self.network_store)
+        assert addr in self.network_store
         new_topics = pickle.loads(data)
         self.network_store[addr][1] = self.network_store[addr][1] + new_topics
 
     def _process_publisher(self):
         """Code for processing publisher messages, streaming input"""
         return NotImplementedError
-    
+
     def receive_connections(self):
         """
             Broker receives a single connection from client right now
@@ -94,16 +96,17 @@ class Broker:
                         elif client_type == "subscriber":
                             self._process_subscriber(addr, data)
                     elif data.decode('utf-8') == 'Subscriber':
-                        assert(addr not in self.network_store)
+                        assert addr not in self.network_store
                         self.network_store[addr] = ["subscriber", []]
                     elif data.decode('utf-8') == 'Publisher':
-                        assert(addr not in self.network_store)
+                        assert addr not in self.network_store
                         self.network_store[addr] = ["publisher", []]
 
                     print(f"self.network_store: {self.network_store}")
                     conn.sendall(b"Broker finished processing")
-                
+
 
     @classmethod
     def set_message_queue_len(cls, length):
+        """Changing the default queue length for messages"""
         cls.queue_length = length
