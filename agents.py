@@ -55,6 +55,9 @@ class Broker:
     # Stores metadata about each connection
     network_store = dict()
 
+    # Store the file descriptors we are waiting to read from
+    fd_read_waits = []
+
     def __init__(self, host=None, port=None):
         self.host = host
         self.port = port
@@ -78,7 +81,10 @@ class Broker:
 
             # Up to queue_length requests in queue
             s.listen(self.queue_length)
+
+            # address is the address bound to the socket on the other end of the conn
             conn, addr = s.accept()
+            self.fd_read_waits.append(conn.fileno())
 
             with conn:
                 print('Connected by', addr)
@@ -102,6 +108,8 @@ class Broker:
                     elif data.decode('utf-8') == 'Publisher':
                         assert addr not in self.network_store
                         self.network_store[addr] = ["publisher", []]
+                    else:
+                        raise ValueError
 
                     print(f"self.network_store: {self.network_store}")
                     conn.sendall(b"Broker finished processing")
