@@ -10,6 +10,7 @@ N_TOPIC_LIMIT = 16
 class Subscriber:
     """Subscriber implementation in the pub-sub system"""
     topics = []
+    last_message = ""
 
     def __init__(self, host=None, port=None):
         self.host = host
@@ -89,7 +90,7 @@ class Broker:
                     # Works because of lazy evaluation. More robust approach?
                     if not data:
                         break
-                    elif addr in self.network_store:
+                    if addr in self.network_store:
                         client_type = self.network_store[addr][0]
                         if client_type == "publisher":
                             self._process_publisher()
