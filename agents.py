@@ -54,7 +54,7 @@ class Subscriber:
             while True:
                 # later change this recv --> select to process stdin
                 data = s.recv(1024)
-                print(f"----data from broker: {data.decode('utf-8')}----")
+                print(f"----message from broker: {data.decode('utf-8')}----")
 
 
 class Publisher:
@@ -115,11 +115,11 @@ class Broker:
         self.host = host
         self.port = port
 
-    def _publish_to_subscribers(self, topic_fds, message):
+    def _publish_to_subscribers(self, topic_fds, topic, message):
         """Iterate through and send msg to subscribers"""
         for fd in topic_fds:
             conn = self.network_store[fd][1]
-            conn.sendall(message)
+            conn.sendall(topic.encode('utf-8') + b": " + message)
 
     def _process_subscriber(self, fd, data):
         """Code for processing subscriber inputs (adding to topic queue)"""
@@ -153,22 +153,23 @@ class Broker:
         # second, index into the self.network_store dictionary to identify
         # the topic associated with the publisher. Only supporting 1 topic per pub
         topic = self.network_store[fd][3]
-        subscriber_fds = self.topic_subscribers[topic]
 
-        # call self._publish_to_subscribers() to publish to the relevant subscribers
-        self._publish_to_subscribers(subscriber_fds, message)
+        if topic in self.topic_subscribers:
+            subscriber_fds = self.topic_subscribers[topic]
+            self._publish_to_subscribers(subscriber_fds, topic, message)
 
     def _close_socket_conn(self, conn):
-        conn.close()
         self.fd_read_waits.remove(conn.fileno())
         try:
             self.network_store.pop(conn.fileno())
         except KeyError:
             pass
+        finally:
+            conn.close()
 
     def receive_connections(self):
         """
-            Broker receives a single connection from client right now
+            Broker receives connections from subs and pubs and separately handles
         """
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind((self.host, self.port))
@@ -228,10 +229,10 @@ class Broker:
                             conn.sendall(b"Broker finished processing topic list")
                 else:
                     logging.error("Invalid fd, breaking all pipes")
+                    for payload in self.network_store.values():
+                        conn = payload[1]
+                        self._close_socket_conn(conn)
                     raise KeyError
-
-                print(f"self.network_store: {self.network_store}")
-
 
     @classmethod
     def set_message_queue_len(cls, length):
